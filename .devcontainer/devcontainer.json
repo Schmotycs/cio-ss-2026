@@ -1,0 +1,76 @@
+{
+  "name": "cio-ss-2026",
+  // Prebuilt in CI from ./Dockerfile, so container create is a pull rather than a
+  // SCIP build. To build locally instead, replace this line with:
+  //   "build": { "dockerfile": "Dockerfile" }
+  "image": "ghcr.io/gtjusila/cio-ss-2026:latest",
+  "remoteUser": "ubuntu",
+  "containerUser": "ubuntu",
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+  // Default SCIP for find_package(SCIP). Override per build directory with
+  //   cmake -S . -B build -DSCIP_DIR=/opt/scip/debug/lib/cmake/scip
+  // The imported target carries an absolute libscip.so path, so the chosen build is
+  // baked into the executable's RPATH -- no LD_LIBRARY_PATH needed.
+  "containerEnv": {
+    "SCIP_DIR": "/opt/scip/release/lib/cmake/scip"
+  },
+  "runArgs": ["--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined"],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "llvm-vs-code-extensions.vscode-clangd",
+        "vadimcn.vscode-lldb",
+        "ms-vscode.cmake-tools",
+        "xaver.clang-format",
+        // Coding agents. Both extensions drive the CLI binaries baked into the
+        // image rather than bundling their own, so these two lines and the
+        // Dockerfile installs are one unit -- neither works without the other.
+        // "openai.chatgpt" is not a typo: it is the publisher ID Codex ships
+        // under. There is no "openai.codex".
+        "anthropic.claude-code",
+        "openai.chatgpt"
+      ],
+      "settings": {
+        "cmake.cmakePath": "/usr/local/bin/cmake",
+        // CMAKE_EXPORT_COMPILE_COMMANDS is what feeds clangd: it writes
+        // build/compile_commands.json, which is the only place clangd learns the
+        // SCIP include paths and the C++ standard from.
+        "cmake.configureSettings": {
+          "CMAKE_C_COMPILER": "/usr/bin/clang",
+          "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
+          // The targets set INTERPROCEDURAL_OPTIMIZATION ON. clang's LTO emits LLVM
+          // bitcode, which ld.bfd can only read through the LLVMgold plugin; lld
+          // reads it natively. Without this the link fails on "file not recognized".
+          "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=lld",
+          "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        },
+        "cmake.additionalCompilerSearchDirs": ["/usr/bin"],
+        // Belt and braces against cpptools: dropping it from "extensions" only
+        // stops the container installing it, but Settings Sync will happily push
+        // a locally-installed copy in anyway. Two language servers on one file
+        // means duplicated completions and contradictory squiggles, so kill its
+        // IntelliSense explicitly -- harmless if the extension isn't there.
+        "C_Cpp.intelliSenseEngine": "disabled",
+        "clangd.path": "/usr/bin/clangd",
+        // Deliberately no --compile-commands-dir. That flag pins one database for
+        // every file clangd opens, which would break reading SCIP itself: a file
+        // under /src/scip would be looked up in the day's build tree, miss, and fall
+        // back to guessed flags. Without it clangd walks each file's ancestors --
+        // finding dayN/build/compile_commands.json for your code and
+        // /src/scip/compile_commands.json for SCIP's, each with its own flags.
+        //
+        // clangd and clang are the same LLVM major, so --query-driver is only
+        // insurance against version skew.
+        "clangd.arguments": [
+          "--query-driver=/usr/bin/clang*",
+          "--background-index",
+          "--header-insertion=never"
+        ]
+      }
+    }
+  }
+}
