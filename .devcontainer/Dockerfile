@@ -322,5 +322,6 @@ RUN set -eux; \
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libsqlite3-dev \
+        sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 USER ${USERNAME}

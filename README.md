@@ -14,7 +14,7 @@ If you prefer working in a locally installed editor over the browser, you can co
 
 ## What Is Inside the Environment
 
-The container is based on Ubuntu and ships the LLVM 22 toolchain, so `clang`, `clang++`, `clangd`, `clang-format` and the `lldb` debugger are all available under their usual names, together with CMake. The SQLite library is also installed; the introduction uses it as an example of a C library. We will compile everything with `-std=c++23`.
+The container is based on Ubuntu and ships the LLVM 22 toolchain, so `clang`, `clang++`, `clangd`, `clang-format` and the `lldb` debugger are all available under their usual names, together with CMake. The SQLite library and its command line tool `sqlite3` are also installed; the introduction uses them as an example of a C library. We will compile everything with `-std=c++23`.
 
 ## Where to Start
 
