@@ -50,7 +50,7 @@ echo $?
 
 ## Types
 
-We will limit ourselves to the following data types in this course. We list all the things that you need to be aware of here
+We will limit ourselves to the following data types in this course. We list all the things that you need to be aware of here. As with the collatz program, try these out yourself: create a file `introduction/types/types.cpp` (all folder paths in this tutorial are relative to the repository root), type each of the following programs into it in turn, and compile and run it the same way as before.
 
 ```cpp
 #include <iostream>
@@ -113,7 +113,7 @@ int main(){
 
 ## Classes and Polymorphism
 
-We now write a program that draws shapes. There are three kinds of shapes, circles, squares and triangles, and each one draws itself differently. We will also split our program to multiple files, so create the folder `/shapes` with the following contents.
+We now write a program that draws shapes. There are three kinds of shapes, circles, squares and triangles, and each one draws itself differently. We will also split our program to multiple files, so create the folder `introduction/shapes` with the following contents.
 
 ```
 introduction/shapes/
@@ -266,6 +266,8 @@ add_executable(draw main.cpp circle.cpp square.cpp triangle.cpp)
 
 Note that every `.cpp` is listed and no header is. Headers are pasted into the sources by `#include`; it is the sources that are compiled, each on its own, and then linked together into one executable.
 
+Now it is time to compile and run. In the terminal, go to the folder `introduction/shapes` and run
+
 ```bash
 cmake -S . -B build
 cmake --build build
@@ -274,7 +276,7 @@ cmake --build build
 
 ## Functions, Lambdas and Function Objects
 
-As an exercise we now write a function that multiplies a number `a` by a factor `b`, and we do it in three ways: as an ordinary function, as a lambda, and as a function object. Create `multiply/multiply.cpp`.
+As an exercise we now write a function that multiplies a number `a` by a factor `b`, and we do it in three ways: as an ordinary function, as a lambda, and as a function object. Create `introduction/multiply/multiply.cpp`.
 
 ```cpp
 #include <iostream>
@@ -307,105 +309,186 @@ int main(){
 }
 ```
 
+Compile and run it with
+
+```bash
+clang++ -std=c++23 multiply.cpp -o multiply
+./multiply
+```
+
 The ordinary function needs no explanation, both arguments arrive at every call. The lambda is for the situation where `b` is already fixed: the bracket `[b]` is the capture list, and the variables listed there are copied into the lambda at the point where it is defined. Changing `b` afterwards does not change `multiply_by_b`; writing `[&b]` instead would capture a reference to `b` rather than a copy. A lambda has a compiler-generated type with no name, hence `auto`.
 
 The function object is the same idea spelled out by hand. `MultiplyBy` is a class with a member `b_`, a constructor that fills it, and an `operator()` that does the multiplication, so an object of this class is called like a function while carrying its factor around as state. The constructor syntax `: b_(b)` is new: it is called a member initializer list and sets the member `b_` to the argument `b` before the constructor body runs. In fact a lambda is exactly such a class written for us by the compiler, the capture list becoming the members.
 
 ## RAII and Interfacing with C Libraries
 
-C++ can call C libraries directly, and we will rely on this often. A C library typically hands out resources in counterpart pairs: one function acquires the resource, a second function must be called to give it back. The C standard library treats files this way, `fopen` opens a file and `fclose` closes it. We write a program that reads a filename from standard input and prints the contents of that file. Create `readfile/readfile.cpp`.
+C++ can call C libraries directly, and we will rely on this often. A C library typically hands out resources in counterpart pairs: one function acquires the resource, a second function must be called to give it back. Our example is SQLite, a database engine written in C: `sqlite3_open` opens a connection to a database file and `sqlite3_close` closes it. We write a program that reads a database filename from standard input, fills a small table of knapsack items and prints it. Create `introduction/sqlite/sqlite.cpp`.
 
 ```cpp
-#include <cstdio>
 #include <iostream>
+#include <sqlite3.h>
 #include <string>
 
 int main(){
     std::string filename;
     std::cin >> filename;
 
-    // fopen is a C function, it needs a C string (recall the section Types)
-    std::FILE * file = std::fopen(filename.c_str(), "r");
-    if (file == nullptr){ // fopen signals failure with a null pointer instead of an exception
+    // sqlite3_open is a C function, it needs a C string (recall the section Types)
+    sqlite3 * db = nullptr;
+    if (sqlite3_open(filename.c_str(), &db) != SQLITE_OK){
         std::cout << "Could not open " << filename << "\n";
+        sqlite3_close(db); // sqlite3_open hands out a connection even on failure, and it too must be closed
         return 1;
     }
-    int c;
-    while ((c = std::fgetc(file)) != EOF){ // read one character at a time until end of file
-        std::cout.put(c);
-    }
-    std::fclose(file); // every fopen must be paired with an fclose
+
+    const char * sql =
+        "DROP TABLE IF EXISTS items;"
+        "CREATE TABLE items (name TEXT, weight INT, value INT);"
+        "INSERT INTO items VALUES ('hammer', 8, 30), ('rope', 3, 14), ('compass', 1, 25);"
+        "SELECT * FROM items;";
+
+    // the callback runs once per row of the SELECT
+    auto print_row = [](void *, int ncols, char ** row, char **){
+        for (int i = 0; i < ncols; ++i){
+            std::cout << row[i] << " ";
+        }
+        std::cout << "\n";
+        return 0;
+    };
+    sqlite3_exec(db, sql, print_row, nullptr, nullptr);
+
+    sqlite3_close(db); // every sqlite3_open must be paired with a sqlite3_close
     return 0;
 }
 ```
 
-We never look inside a `std::FILE`, we only hold a pointer to it and pass that pointer back to the library. C has no destructors, so the library trusts us to call the counterpart function `fclose` ourselves. One can easily 'forget' to do so, and this can happen in a nontrivial way. Suppose we decide that an empty file is an error
+Compile and run it with
+
+```bash
+clang++ -std=c++23 sqlite.cpp -o sqlite -lsqlite3
+./sqlite
+```
+
+The new flag `-lsqlite3` tells the linker to link our program against the SQLite library; without it every `sqlite3_` function is an unresolved name. The program waits for you to type a filename and press enter; type `course.db`. SQLite creates the file if it does not exist. Afterwards you can inspect the database with the command line tool, `sqlite3 course.db` (type `.quit` to leave).
+
+Two things in this program deserve a closer look. The first is the signature of `sqlite3_open`:
 
 ```cpp
-#include <cstdio>
+int sqlite3_open(const char * filename, sqlite3 ** db);
+```
+
+The return value is already taken by the error code, so the function cannot also return the connection. Instead we declare a pointer `db` and pass its address `&db`, and the library writes the freshly built connection through it:
+
+```
+ db   : sqlite3 *   ── after the call, points at ──►  the connection object
+&db   : sqlite3 **  ── lets sqlite3_open write into the variable db itself
+```
+
+A parameter used this way is called an out-parameter, and passing `&pointer` to receive a handle is the standard idiom of C libraries. It will come back many times in this course: SCIP, the solver we build on, creates its central object with exactly this shape, `SCIPcreate(&scip)`.
+
+The second is the callback. `sqlite3_exec` wants a plain C function pointer that it can call once per row, and a C library knows nothing about C++ function objects. A lambda with an empty capture list `[]` converts to exactly such a function pointer. Recall from the section *Functions, Lambdas and Function Objects* that the captures become the members of a compiler-generated class; only a captureless lambda has no such state and can therefore act as a plain function.
+
+We never look inside a `sqlite3`, we only hold a pointer to it and pass that pointer back to the library. C has no destructors, so the library trusts us to call the counterpart function `sqlite3_close` ourselves. One can easily 'forget' to do so, and this can happen in a nontrivial way. Suppose we decide that a failing query should abort the program.
+
+```cpp
 #include <iostream>
+#include <sqlite3.h>
 #include <string>
 
 int main(){
     std::string filename;
     std::cin >> filename;
 
-    std::FILE * file = std::fopen(filename.c_str(), "r");
-    if (file == nullptr){
+    sqlite3 * db = nullptr;
+    if (sqlite3_open(filename.c_str(), &db) != SQLITE_OK){
         std::cout << "Could not open " << filename << "\n";
+        sqlite3_close(db);
         return 1;
     }
-    int c = std::fgetc(file);
-    if (c == EOF){
-        std::cout << filename << " is empty\n";
-        return 1; // early exit: fclose is never called, the file stays open
+
+    const char * sql =
+        "DROP TABLE IF EXISTS items;"
+        "CREATE TABLE items (name TEXT, weight INT, value INT);"
+        "INSERT INTO items VALUES ('hammer', 8, 30), ('rope', 3, 14), ('compass', 1, 25);"
+        "SELECT * FROM items;";
+
+    auto print_row = [](void *, int ncols, char ** row, char **){
+        for (int i = 0; i < ncols; ++i){
+            std::cout << row[i] << " ";
+        }
+        std::cout << "\n";
+        return 0;
+    };
+    if (sqlite3_exec(db, sql, print_row, nullptr, nullptr) != SQLITE_OK){
+        std::cout << "Query failed: " << sqlite3_errmsg(db) << "\n";
+        return 1; // early exit: sqlite3_close is never called, the connection stays open
     }
-    while (c != EOF){
-        std::cout.put(c);
-        c = std::fgetc(file);
-    }
-    std::fclose(file);
+
+    sqlite3_close(db);
     return 0;
 }
 ```
 
-For an empty file we return without ever closing it. The operating system limits how many files a process may hold open at once, so a program that keeps 'forgetting' eventually finds that every further `fopen` fails. One way to avoid this is to use a paradigm called RAII (Resource Acquisition Is Initialization): we tie the resource to an object whose destructor calls the counterpart function, so that every way out of the function, early or not, gives the resource back. We will use this paradigm often whenever we are required to call a counterpart function to our call.
+For a failing query we return without ever closing the connection — put a typo into the SQL string and you walk this path yourself. A database connection holds an open file, and the operating system limits how many files a process may hold open at once, so a program that keeps 'forgetting' eventually finds that every further open fails. One way to avoid this is to use a paradigm called RAII (Resource Acquisition Is Initialization): we tie the resource to an object whose destructor calls the counterpart function, so that every way out of the function, early or not, gives the resource back. We will use this paradigm often whenever we are required to call a counterpart function to our call. Replace the contents of `sqlite.cpp` with the following, then compile and run it again as before.
 
 ```cpp
-#include <cstdio>
 #include <iostream>
 #include <memory>
+#include <sqlite3.h>
 #include <string>
 
-struct FileDeleter{
-    // 1. We create a `promise` to close the file once the owner goes out of scope
-    void operator()(std::FILE * f) const noexcept { std::fclose(f); }
+struct SqliteCloser{
+    // 1. We create a `promise` to close the connection once the owner goes out of scope
+    void operator()(sqlite3 * db) const noexcept { sqlite3_close(db); }
 };
 
 int main(){
     std::string filename;
     std::cin >> filename;
 
-    // 2. We create a variable file that owns what fopen handed out, with the promise attached
-    std::unique_ptr<std::FILE, FileDeleter> file(std::fopen(filename.c_str(), "r"));
-    if (file == nullptr){
+    // 2. Open into a raw pointer, then immediately hand ownership over, with the promise attached
+    sqlite3 * raw = nullptr;
+    int rc = sqlite3_open(filename.c_str(), &raw);
+    std::unique_ptr<sqlite3, SqliteCloser> db(raw);
+    if (rc != SQLITE_OK){
         std::cout << "Could not open " << filename << "\n";
-        return 1; // nothing was opened, the promise is not called on a null pointer
+        return 1; // the promise still closes the handle that the failed open handed out
     }
-    int c;
+
+    const char * sql =
+        "DROP TABLE IF EXISTS items;"
+        "CREATE TABLE items (name TEXT, weight INT, value INT);"
+        "INSERT INTO items VALUES ('hammer', 8, 30), ('rope', 3, 14), ('compass', 1, 25);"
+        "SELECT * FROM items;";
+
+    auto print_row = [](void *, int ncols, char ** row, char **){
+        for (int i = 0; i < ncols; ++i){
+            std::cout << row[i] << " ";
+        }
+        std::cout << "\n";
+        return 0;
+    };
     // 3. .get() hands the raw pointer to a C function that knows nothing about ownership
-    while ((c = std::fgetc(file.get())) != EOF){
-        std::cout.put(c);
+    if (sqlite3_exec(db.get(), sql, print_row, nullptr, nullptr) != SQLITE_OK){
+        std::cout << "Query failed: " << sqlite3_errmsg(db.get()) << "\n";
+        return 1; // early exit needs no special case, the promise is kept
     }
-    return 0; // file goes out of scope, the promise is kept, fclose runs
+    return 0; // db goes out of scope, the promise is kept, sqlite3_close runs
 }
 ```
 
-This is the same `std::unique_ptr` as in the shape drawing program, except that we now attach our own deleter in place of the default one. `FileDeleter` is a function object as in the previous section; `std::unique_ptr` executes it on the owned pointer when the variable goes out of scope. The early return for a missing file needs no special case, since the promise is skipped when the pointer is null. The method `.get()` exists precisely for interfacing with C: it hands out the raw pointer without giving up ownership. Any C library that comes in acquire/release pairs is wrapped in exactly this way.
+This is the same `std::unique_ptr` as in the shape drawing program, except that we now attach our own deleter in place of the default one. `SqliteCloser` is a function object as in the previous section; `std::unique_ptr` executes it on the owned pointer when the variable goes out of scope. Note the two-step opening: the out-parameter forces us to open into a raw pointer first and hand ownership over on the very next line. From that line on every way out of `main` closes the connection, including the error branch of the open itself. The method `.get()` exists precisely for interfacing with C: it hands out the raw pointer without giving up ownership. Any C library that comes in acquire/release pairs is wrapped in exactly this way.
 
 ## Stack and Heap Memory
 
-Unlike in higher languages such as Python, C and C++ allows you the possibility of managing your memory manually. Our running example in this section is the sieve of Eratosthenes, which finds the primes below 100 by crossing out the multiples of every prime it meets. We first introduced stack memory
+Unlike in higher languages such as Python, C and C++ allows you the possibility of managing your memory manually. Our running example in this section is the sieve of Eratosthenes, which finds the primes below 100 by crossing out the multiples of every prime it meets. Create `introduction/sieve/sieve.cpp`. We will rewrite this one program several times in this section; each time, replace the contents of `sieve.cpp` with the new version and compile and run it with
+
+```bash
+clang++ -std=c++23 sieve.cpp -o sieve
+./sieve
+```
+
+We first introduced stack memory
 
 ```cpp
 int foo(){
@@ -438,7 +521,7 @@ int main(){
 
 Note that unlike Python, C++ does not check your indices. Writing `foo_arr[100]` compiles fine (valid indices are 0..99) and simply reads whatever happens to sit after the array — no `IndexError`, just garbage or a crash.
 
-There are several weakness of the above program. For example, if the caller want the primes themselves instead of merely their count then `foo_arr` is no longer available within the `main` function — returning it would hand back a pointer to stack memory that has already been reclaimed. To this end, heap memory is introduced, that is, memory that must be allocated and freed manually.
+There are several weakness of the above program. For example, if the caller want the primes themselves instead of merely their count then `foo_arr` is no longer available within the `main` function — returning it would hand back a pointer to stack memory that has already been reclaimed. To this end, heap memory is introduced, that is, memory that must be allocated and freed manually. Replace the contents of `sieve.cpp` with the following and run it again.
 
 ```cpp
 #include<iostream>
@@ -473,7 +556,7 @@ int main(){
 }
 ```
 
-One can easily 'forget' to free allocated memory. We call this a memory leak. This can happen in nontrivial way 
+One can easily 'forget' to free allocated memory. We call this a memory leak. This can happen in nontrivial way
 
 ```cpp
 #include<iostream>
@@ -511,7 +594,7 @@ int main(){
 }
 ```
 
-In the above code, since 97 is prime the condition holds and we return without ever freeing `main_arr`. Python would have collected the object for us once the last reference disappeared; C++ will not. This is the same situation as an `fopen` without its `fclose`: `new[]` has the counterpart `delete[]`, and an early return skips it. The remedy is the RAII paradigm from the section *RAII and Interfacing with C Libraries*.
+In the above code, since 97 is prime the condition holds and we return without ever freeing `main_arr`. Python would have collected the object for us once the last reference disappeared; C++ will not. This is the same situation as an `sqlite3_open` without its `sqlite3_close`: `new[]` has the counterpart `delete[]`, and an early return skips it. The remedy is the RAII paradigm from the section *RAII and Interfacing with C Libraries*. Replace the contents of `sieve.cpp` with the following and run it again.
 
 ```cpp
 #include<iostream>
@@ -519,7 +602,7 @@ In the above code, since 97 is prime the condition holds and we return without e
 
 struct IntArrayDeleter{
     //  1. We create a `promise` to free the memory once the owner gets deallocated,
-    //     playing the role FileDeleter played for files
+    //     playing the role SqliteCloser played for database connections
     void operator()(int * p) const noexcept { delete[] p; }
 };
 
@@ -564,7 +647,7 @@ We then request heap memory and give ownership of it to `foo_arr` via the method
 
 Note that `std::unique_ptr<int[]>` already calls `delete[]` by default; we spell out `IntArrayDeleter` only to make the mechanism visible. The vector of `std::unique_ptr<Shape>` in the shape drawing program was the same promise with the default deleter, which is why that program frees nothing by hand.
 
-A second usecase of heap memory is when we do not know the number of elements to be allocated beforehand. Suppose we want the primes below a bound `n` that the user provides.
+A second usecase of heap memory is when we do not know the number of elements to be allocated beforehand. Suppose we want the primes below a bound `n` that the user provides. Replace the contents of `sieve.cpp` with the following and run it again; the program now waits for you to type the bound and press enter.
 
 ```cpp
 #include <iostream>
@@ -600,7 +683,7 @@ int main(){
 }
 ```
 
-C++ give us `std::vector` for this purpose (to allocate and free heap memory more easily).
+C++ give us `std::vector` for this purpose (to allocate and free heap memory more easily). Again, replace the contents of `sieve.cpp` and run.
 
 
 ```cpp
@@ -632,7 +715,7 @@ int main(){
 }
 ```
 
-We show how vector can be used to solve the earlier problem. We propose 2 solutions.
+We show how vector can be used to solve the earlier problem. We propose 2 solutions; try each of them in `sieve.cpp` as before.
 
 ```cpp
 #include <vector>
@@ -739,7 +822,7 @@ Here `main_arr` is memory allocated in the stack as a part of the `main` functio
 
 ## The Ranges and Algorithms Libraries
 
-We close with the ranges and algorithms libraries, which recover much of the comfort you are used to from Python: `zip`, `enumerate`, `sorted` with a key, and `sum` all have counterparts here. Our example is the knapsack problem. We are given items, each with a weight and a value, and a knapsack of capacity 25, and we want to pack as much value as possible into it. We generate 10 random items and try the classic greedy heuristic: pack the items with the best value per weight first. Create `knapsack/knapsack.cpp`.
+We close with the ranges and algorithms libraries, which recover much of the comfort you are used to from Python: `zip`, `enumerate`, `sorted` with a key, and `sum` all have counterparts here. Our example is the knapsack problem. We are given items, each with a weight and a value, and a knapsack of capacity 25, and we want to pack as much value as possible into it. We generate 10 random items and try the classic greedy heuristic: pack the items with the best value per weight first. Create `introduction/knapsack/knapsack.cpp`.
 
 ```cpp
 #include <algorithm>
@@ -792,6 +875,15 @@ int main(){
     return 0;
 }
 ```
+
+Compile and run it with
+
+```bash
+clang++ -std=c++23 knapsack.cpp -o knapsack
+./knapsack
+```
+
+Run it a few times: the items are random, so every run packs a different knapsack.
 
 We go through this example step by step. The items are stored as two parallel vectors, `weight[i]` and `value[i]` together describe item `i`. `std::views::zip(value, weight)` glues the two vectors into a single range of pairs, the analogue of Python's `zip`. A view is lazy and owns nothing: no pair is built until we iterate, and the view merely borrows the two vectors, in the same non-owning way a `std::span` borrows an array. In particular a view must not outlive the vectors underneath it.
 
