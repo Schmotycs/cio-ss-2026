@@ -3,7 +3,7 @@
   // Prebuilt in CI from ./Dockerfile, so container create is a pull rather than a
   // SCIP build. To build locally instead, replace this line with:
   //   "build": { "dockerfile": "Dockerfile" }
-  "image": "ghcr.io/gtjusila/cio-ss-2026:amd64",
+  "image": "ghcr.io/gtjusila/cio-ss-2026:latest",
   "remoteUser": "ubuntu",
   "containerUser": "ubuntu",
   "hostRequirements": {
