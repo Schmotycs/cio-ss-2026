@@ -1,0 +1,802 @@
+# Introduction to Programming in C++
+
+## Your First C++ Program
+
+Create a file `introduction/collatz/collatz.cpp`. C++ source files carry the extension `.cpp`, headers `.h` or `.hpp`. Type in the following program, which generates the collatz sequence. The control flow should be self explanatory.
+
+```cpp
+#include <iostream>
+#include <vector>
+
+int main() {
+    int n;
+    std::cin >> n;
+    std::vector<int> series;
+    series.push_back(n);
+    while (n != 1) {
+        if (n % 2 == 0) {
+            n = n / 2;
+        } else {
+            n = 3 * n + 1;
+        }
+        series.push_back(n);
+    }
+    /*
+    * A more modern way of doing
+    * for (int i = 0; i < std::ssize(series); ++i){
+    *     ...
+    * }
+    */
+    for (int x : series) {
+        std::cout << x << " ";
+    }
+    std::cout << "\n";
+    return 0;
+}
+```
+
+Compile and run it with
+
+```bash
+clang++ -std=c++23 collatz.cpp -o collatz
+./collatz
+```
+
+We will use `-std=c++23` throughout. Execution starts at `main`, whose return value is the exit status of the process. This can be queried via
+
+```bash
+echo $?
+```
+
+## Types
+
+We will limit ourselves to the following data types in this course. We list all the things that you need to be aware of here
+
+```cpp
+#include <iostream>
+#include <format>
+int main(){
+    int i = 5; // Integers
+    double j = 10.0; // Double
+
+    double k = i/2; // 2.0 division of int / int (2) truncates
+    double l = i/2.0;// 2.5 division of int/ double -> int get converted to double -> double / double
+
+    double arr[] = {1.0, 2.0, 3.0};
+
+    // For a variety of reasons, C++ programmers use auto instead of declaring the variable type manually. When auto is used the type of the variable is determined by the right hand side
+    auto a = 5; // a is an int var
+    auto b = 2.5; // b is a double var
+    auto c = 5.0; // c is a double var
+    auto d = arr[1]; // d is equal to 2.0 and has type double
+
+    auto pi = 3.14159265359;
+    std::cout << std::format("Pi is {:.3f}",pi); // Prints Pi is 3.142, the last digit is rounded
+    return 0;
+}
+```
+
+A more complex usecase example of auto
+
+```cpp
+auto foo(){ // The return type of foo is determined automatically
+    return 5.0; // Since we return 5.0 it is deduced as double
+}
+
+int main(){
+    auto f =  foo(); // foo returns a double hence f is a double.
+    return 0;
+}
+```
+
+Finally, we introduce strings and chars
+
+```cpp
+#include <string>
+#include <iostream>
+
+void foo (const char * s){
+    std::cout << "This is a function that needs a C string. And the string is " 
+    << s  
+    << std::endl;
+}
+
+int main(){
+    const char * c = "This is a C string";
+    std::string p = "This is a C++ string";
+
+    // The following demonstrates how you pass a C++ string to a function that needs a C string
+    foo(p.c_str()); 
+    return 0;
+}
+```
+
+## Classes and Polymorphism
+
+We now write a program that draws shapes. There are three kinds of shapes, circles, squares and triangles, and each one draws itself differently. We will also split our program to multiple files, so create the folder `/shapes` with the following contents.
+
+```
+introduction/shapes/
+├── CMakeLists.txt
+├── shape.hpp
+├── circle.hpp
+├── circle.cpp
+├── square.hpp
+├── square.cpp
+├── triangle.hpp
+├── triangle.cpp
+└── main.cpp
+```
+
+The convention in C++ is one class per header and source pair. The header declares what a class can do, the source defines how it is done. We first introduce the class `Shape`, which describes what every shape has in common and nothing more.
+
+```cpp
+#pragma once
+
+class Shape {
+public:
+    virtual ~Shape() = default;    // needed as soon as we destroy a shape through a Shape pointer
+    virtual void draw() const = 0; // = 0 : every Shape can draw, no Shape says how
+};
+```
+
+The `= 0` makes `draw` a pure virtual function and `Shape` an abstract class. One can no longer write `Shape s;`, since the class only states what a shape must be able to do. The line `#pragma once` prevents the header from being pasted in twice when several files include it.
+
+A concrete shape inherits from `Shape` and supplies the missing `draw`. We first write the circle.
+
+```cpp
+// circle.hpp
+#pragma once
+#include "shape.hpp"
+
+class Circle : public Shape {
+public:
+    void draw() const override;
+};
+```
+
+```cpp
+// circle.cpp
+#include "circle.hpp"
+#include <iostream>
+
+void Circle::draw() const {
+    std::cout << "Hey I am a circle\n";
+}
+```
+
+Note that we write `#include "circle.hpp"` with quotes instead of angle brackets. Quotes mean look next to this file, angle brackets mean look where the compiler keeps its own headers. The keyword `override` is not decoration: the compiler rejects it if nothing in the base class matches, which catches a mistyped signature that would otherwise silently declare a new unrelated function.
+
+The remaining two shapes are the same lines with the word substituted.
+
+```cpp
+// square.hpp
+#pragma once
+#include "shape.hpp"
+
+class Square : public Shape {
+public:
+    void draw() const override;
+};
+
+// square.cpp
+#include "square.hpp"
+#include <iostream>
+
+void Square::draw() const {
+    std::cout << "Hey I am a square\n";
+}
+
+// triangle.hpp
+#pragma once
+#include "shape.hpp"
+
+class Triangle : public Shape {
+public:
+    void draw() const override;
+};
+
+// triangle.cpp
+#include "triangle.hpp"
+#include <iostream>
+
+void Triangle::draw() const {
+    std::cout << "Hey I am a triangle\n";
+}
+```
+
+Finally, in `main.cpp` we build ten shapes, each picked at random, and ask every one of them to draw itself.
+
+```cpp
+#include "circle.hpp"
+#include "square.hpp"
+#include "triangle.hpp"
+
+#include <memory>
+#include <random>
+#include <vector>
+
+int main(){
+    std::mt19937 gen(std::random_device{}()); // a random number generator, seeded once
+    std::uniform_real_distribution<double> u(0.0, 1.0);
+
+    // 1. We create a vector that will own the ten shapes
+    std::vector<std::unique_ptr<Shape>> shapes;
+    for (int i = 0; i < 10; ++i){
+        double x = u(gen); // uniformly distributed in [0,1)
+        // 2. We create a random shape in heap memory and hand ownership over to the vector
+        if (x < 1.0/3.0){
+            shapes.push_back(std::make_unique<Circle>());
+        } else if (x < 2.0/3.0){
+            shapes.push_back(std::make_unique<Square>());
+        } else {
+            shapes.push_back(std::make_unique<Triangle>());
+        }
+    }
+
+    for (const auto & shape : shapes){
+        // 3. Which draw runs is decided by the object, not by the pointer type
+        shape->draw();
+    }
+    return 0; // the vector goes out of scope and every shape is destroyed, no delete written anywhere
+}
+```
+
+We go through this example step by step. `shape` in the last loop is a pointer to `Shape`, and member access through a pointer is written with an arrow instead of a dot: `shape->draw()` is shorthand for `(*shape).draw()`, dereference first, then call. The dot we have used so far, as in `p.c_str()` in the section *Types*, works on the object itself. In Python this distinction never arises, every variable there is a reference and the dot does both jobs. Strictly speaking `shape` is a `std::unique_ptr` rather than a raw pointer, but `std::unique_ptr` forwards `*` and `->` to the pointer it owns precisely so that it can be used like one.
+
+Now, `Shape` does not know how to draw anything. Nevertheless the correct message is printed for each element. Which `draw` is executed is decided while the program runs, from the object actually pointed at. We call this dynamic dispatch. Python does this for every method call; C++ does it only where `virtual` asks for it.
+
+This is also the reason the vector holds pointers instead of shapes. `std::vector<Shape>` is not possible since `Shape` is an abstract class, and even if it were, every element of a vector must have the same size, whereas the whole point here is that the vector holds a mixture. To this end, the shapes themselves live in heap memory and the vector holds pointers to them.
+
+`std::make_unique<Circle>()` creates a `Circle` in heap memory and hands it to a `std::unique_ptr<Shape>`, a pointer that owns what it points at: when the pointer is destroyed, so is the shape. Unique means exactly one owner at a time, hence the pointer is moved into the vector rather than copied, and the program contains no `delete`. At the end of `main` the vector is destroyed, which destroys the ten pointers, each of which destroys its shape. We come back to how this works in the section *Stack and Heap Memory*.
+
+The destructor in `shape.hpp` is what makes this safe. The vector destroys a `Circle` through a `Shape` pointer, so `~Shape` must be `virtual`, otherwise only the `Shape` part of the object is cleaned up. One can easily 'forget' this keyword; drop it and clang tells you directly: *delete called on 'Shape' that is abstract but has non-virtual destructor*.
+
+To compile the program we must now hand four source files to `clang++`. This becomes tiresome quickly, so we use CMake instead. Put the following in `CMakeLists.txt` and take it as magic for now.
+
+```cmake
+cmake_minimum_required(VERSION 4.0)
+project(shapes CXX)
+
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_executable(draw main.cpp circle.cpp square.cpp triangle.cpp)
+```
+
+Note that every `.cpp` is listed and no header is. Headers are pasted into the sources by `#include`; it is the sources that are compiled, each on its own, and then linked together into one executable.
+
+```bash
+cmake -S . -B build
+cmake --build build
+./build/draw
+```
+
+## Functions, Lambdas and Function Objects
+
+As an exercise we now write a function that multiplies a number `a` by a factor `b`, and we do it in three ways: as an ordinary function, as a lambda, and as a function object. Create `multiply/multiply.cpp`.
+
+```cpp
+#include <iostream>
+
+// 1. An ordinary function, both a and b are passed on every call
+int multiply_by(int a, int b){
+    return a * b;
+}
+
+// 3. A function object, a class whose operator() makes its objects callable like a function
+class MultiplyBy{
+public:
+    MultiplyBy(int b) : b_(b) {} // the constructor stores the factor in the member b_
+    int operator()(int a) const { return a * b_; }
+private:
+    int b_;
+};
+
+int main(){
+    std::cout << multiply_by(5, 3) << "\n"; // 15
+
+    // 2. A lambda, b is captured from the surrounding scope, only a is passed
+    int b = 3;
+    auto multiply_by_b = [b](int a){ return a * b; };
+    std::cout << multiply_by_b(5) << "\n"; // 15
+
+    MultiplyBy multiply_by_obj(3); // the factor is fixed once, at construction
+    std::cout << multiply_by_obj(5) << "\n"; // 15
+    return 0;
+}
+```
+
+The ordinary function needs no explanation, both arguments arrive at every call. The lambda is for the situation where `b` is already fixed: the bracket `[b]` is the capture list, and the variables listed there are copied into the lambda at the point where it is defined. Changing `b` afterwards does not change `multiply_by_b`; writing `[&b]` instead would capture a reference to `b` rather than a copy. A lambda has a compiler-generated type with no name, hence `auto`.
+
+The function object is the same idea spelled out by hand. `MultiplyBy` is a class with a member `b_`, a constructor that fills it, and an `operator()` that does the multiplication, so an object of this class is called like a function while carrying its factor around as state. The constructor syntax `: b_(b)` is new: it is called a member initializer list and sets the member `b_` to the argument `b` before the constructor body runs. In fact a lambda is exactly such a class written for us by the compiler, the capture list becoming the members.
+
+## RAII and Interfacing with C Libraries
+
+C++ can call C libraries directly, and we will rely on this often. A C library typically hands out resources in counterpart pairs: one function acquires the resource, a second function must be called to give it back. The C standard library treats files this way, `fopen` opens a file and `fclose` closes it. We write a program that reads a filename from standard input and prints the contents of that file. Create `readfile/readfile.cpp`.
+
+```cpp
+#include <cstdio>
+#include <iostream>
+#include <string>
+
+int main(){
+    std::string filename;
+    std::cin >> filename;
+
+    // fopen is a C function, it needs a C string (recall the section Types)
+    std::FILE * file = std::fopen(filename.c_str(), "r");
+    if (file == nullptr){ // fopen signals failure with a null pointer instead of an exception
+        std::cout << "Could not open " << filename << "\n";
+        return 1;
+    }
+    int c;
+    while ((c = std::fgetc(file)) != EOF){ // read one character at a time until end of file
+        std::cout.put(c);
+    }
+    std::fclose(file); // every fopen must be paired with an fclose
+    return 0;
+}
+```
+
+We never look inside a `std::FILE`, we only hold a pointer to it and pass that pointer back to the library. C has no destructors, so the library trusts us to call the counterpart function `fclose` ourselves. One can easily 'forget' to do so, and this can happen in a nontrivial way. Suppose we decide that an empty file is an error
+
+```cpp
+#include <cstdio>
+#include <iostream>
+#include <string>
+
+int main(){
+    std::string filename;
+    std::cin >> filename;
+
+    std::FILE * file = std::fopen(filename.c_str(), "r");
+    if (file == nullptr){
+        std::cout << "Could not open " << filename << "\n";
+        return 1;
+    }
+    int c = std::fgetc(file);
+    if (c == EOF){
+        std::cout << filename << " is empty\n";
+        return 1; // early exit: fclose is never called, the file stays open
+    }
+    while (c != EOF){
+        std::cout.put(c);
+        c = std::fgetc(file);
+    }
+    std::fclose(file);
+    return 0;
+}
+```
+
+For an empty file we return without ever closing it. The operating system limits how many files a process may hold open at once, so a program that keeps 'forgetting' eventually finds that every further `fopen` fails. One way to avoid this is to use a paradigm called RAII (Resource Acquisition Is Initialization): we tie the resource to an object whose destructor calls the counterpart function, so that every way out of the function, early or not, gives the resource back. We will use this paradigm often whenever we are required to call a counterpart function to our call.
+
+```cpp
+#include <cstdio>
+#include <iostream>
+#include <memory>
+#include <string>
+
+struct FileDeleter{
+    // 1. We create a `promise` to close the file once the owner goes out of scope
+    void operator()(std::FILE * f) const noexcept { std::fclose(f); }
+};
+
+int main(){
+    std::string filename;
+    std::cin >> filename;
+
+    // 2. We create a variable file that owns what fopen handed out, with the promise attached
+    std::unique_ptr<std::FILE, FileDeleter> file(std::fopen(filename.c_str(), "r"));
+    if (file == nullptr){
+        std::cout << "Could not open " << filename << "\n";
+        return 1; // nothing was opened, the promise is not called on a null pointer
+    }
+    int c;
+    // 3. .get() hands the raw pointer to a C function that knows nothing about ownership
+    while ((c = std::fgetc(file.get())) != EOF){
+        std::cout.put(c);
+    }
+    return 0; // file goes out of scope, the promise is kept, fclose runs
+}
+```
+
+This is the same `std::unique_ptr` as in the shape drawing program, except that we now attach our own deleter in place of the default one. `FileDeleter` is a function object as in the previous section; `std::unique_ptr` executes it on the owned pointer when the variable goes out of scope. The early return for a missing file needs no special case, since the promise is skipped when the pointer is null. The method `.get()` exists precisely for interfacing with C: it hands out the raw pointer without giving up ownership. Any C library that comes in acquire/release pairs is wrapped in exactly this way.
+
+## Stack and Heap Memory
+
+Unlike in higher languages such as Python, C and C++ allows you the possibility of managing your memory manually. Our running example in this section is the sieve of Eratosthenes, which finds the primes below 100 by crossing out the multiples of every prime it meets. We first introduced stack memory
+
+```cpp
+int foo(){
+    // The array of 100 int (400 bytes) lives in stack memory
+    int foo_arr[100];
+    for (int i = 0; i < 100; ++i){
+        foo_arr[i] = 1; // 1 means possible prime, 0 means crossed out
+    }
+    foo_arr[0] = 0;
+    foo_arr[1] = 0;
+    for (int i = 2; i < 100; ++i){
+        if (foo_arr[i] == 1){ // i was never crossed out, it is prime
+            for (int j = 2 * i; j < 100; j += i){
+                foo_arr[j] = 0; // cross out the multiples of i
+            }
+        }
+    }
+    int count = 0;
+    for (int i = 0; i < 100; ++i){
+        count += foo_arr[i];
+    }
+    return count; // the number of primes below 100, which is 25
+    // at the end of the function the 400 bytes of memory allocated are freed from stack memory automatically
+}
+int main(){
+    auto a = foo();
+    return 0;
+}
+```
+
+Note that unlike Python, C++ does not check your indices. Writing `foo_arr[100]` compiles fine (valid indices are 0..99) and simply reads whatever happens to sit after the array — no `IndexError`, just garbage or a crash.
+
+There are several weakness of the above program. For example, if the caller want the primes themselves instead of merely their count then `foo_arr` is no longer available within the `main` function — returning it would hand back a pointer to stack memory that has already been reclaimed. To this end, heap memory is introduced, that is, memory that must be allocated and freed manually.
+
+```cpp
+#include<iostream>
+int * foo(){
+    // foo returns a pointer to where foo_arr is stored
+    int * foo_arr = new int[100]; // we request to be allocated memory for 100 ints
+    for (int i = 0; i < 100; ++i){
+        foo_arr[i] = 1;
+    }
+    foo_arr[0] = 0;
+    foo_arr[1] = 0;
+    for (int i = 2; i < 100; ++i){
+        if (foo_arr[i] == 1){
+            for (int j = 2 * i; j < 100; j += i){
+                foo_arr[j] = 0;
+            }
+        }
+    }
+    return foo_arr;
+}
+
+int main(){
+    int * main_arr = foo(); // main_arr points at the same heap block foo allocated
+    for (int i = 0; i < 100; ++i){
+        if (main_arr[i] == 1){
+            std::cout << i << " ";
+        }
+    }
+    std::cout << std::endl;
+    delete[] main_arr; // We are finished with using the allocated memory, we free it
+    return 0;
+}
+```
+
+One can easily 'forget' to free allocated memory. We call this a memory leak. This can happen in nontrivial way 
+
+```cpp
+#include<iostream>
+int * foo(){
+    // foo returns a pointer to where foo_arr is stored
+    int * foo_arr = new int[100]; // we request to be allocated memory for 100 ints
+    for (int i = 0; i < 100; ++i){
+        foo_arr[i] = 1;
+    }
+    foo_arr[0] = 0;
+    foo_arr[1] = 0;
+    for (int i = 2; i < 100; ++i){
+        if (foo_arr[i] == 1){
+            for (int j = 2 * i; j < 100; j += i){
+                foo_arr[j] = 0;
+            }
+        }
+    }
+    return foo_arr;
+}
+
+int main(){
+    int * main_arr = foo();
+    for (int i = 0; i < 100; ++i){
+        if (main_arr[i] == 1){
+            std::cout << i << " ";
+        }
+    }
+    std::cout << std::endl;
+    if (main_arr[97] == 1){
+        return 1; // early exit: main_arr is never freed
+    }
+    delete[] main_arr; // We are finished with using the allocated memory, we free it
+    return 0;
+}
+```
+
+In the above code, since 97 is prime the condition holds and we return without ever freeing `main_arr`. Python would have collected the object for us once the last reference disappeared; C++ will not. This is the same situation as an `fopen` without its `fclose`: `new[]` has the counterpart `delete[]`, and an early return skips it. The remedy is the RAII paradigm from the section *RAII and Interfacing with C Libraries*.
+
+```cpp
+#include<iostream>
+#include<memory>
+
+struct IntArrayDeleter{
+    //  1. We create a `promise` to free the memory once the owner gets deallocated,
+    //     playing the role FileDeleter played for files
+    void operator()(int * p) const noexcept { delete[] p; }
+};
+
+auto foo(){
+    // 2. We create a variable foo_arr that will own an int array, with the promise attached to it
+    std::unique_ptr<int[], IntArrayDeleter> foo_arr(nullptr, IntArrayDeleter{});
+    {
+        int * temp = new int[100]; // we request to be allocated memory for 100 ints
+        // Hand over ownership of temp to foo_arr
+        foo_arr.reset(temp);
+    }
+    for (int i = 0; i < 100; ++i){
+        foo_arr[i] = 1;
+    }
+    foo_arr[0] = 0;
+    foo_arr[1] = 0;
+    for (int i = 2; i < 100; ++i){
+        if (foo_arr[i] == 1){
+            for (int j = 2 * i; j < 100; j += i){
+                foo_arr[j] = 0;
+            }
+        }
+    }
+    return foo_arr; // foo_arr is a std::unique_ptr<int[], IntArrayDeleter>
+}
+
+int main(){
+    // 3. When foo returns, the array outlives foo_arr by being moved into main_arr, so the memory is not freed here
+    auto main_arr = foo();
+    for (int i = 0; i < 100; ++i){
+        if (main_arr[i] == 1){
+            std::cout << i << " ";
+        }
+    }
+    std::cout << std::endl;
+    return 0; // main_arr goes out of scope, the promise to free the memory is kept
+}
+```
+
+We go through this example step by step. In the beginning we call the `foo` function with the request that the returned value from foo should be stored in `main_arr`. When the foo function is called we create a `std::unique_ptr` object. `std::unique_ptr` allows us to attach a callable class that will be executed as soon as the variable goes out of scope.
+We then request heap memory and give ownership of it to `foo_arr` via the method `reset`. In the final line, `return foo_arr`, C++ will move the ownership from `foo_arr` to `main_arr`, hence the allocated memory continues to live — the moved-from `foo_arr` holds a null pointer and its deleter does nothing. At the end of the `main` function `main_arr` goes out of scope and the memory is freed.
+
+Note that `std::unique_ptr<int[]>` already calls `delete[]` by default; we spell out `IntArrayDeleter` only to make the mechanism visible. The vector of `std::unique_ptr<Shape>` in the shape drawing program was the same promise with the default deleter, which is why that program frees nothing by hand.
+
+A second usecase of heap memory is when we do not know the number of elements to be allocated beforehand. Suppose we want the primes below a bound `n` that the user provides.
+
+```cpp
+#include <iostream>
+int main(){
+    int n;
+    std::cin >> n; // Read the bound giving n
+    if (n < 2){
+        return 0; // there are no primes below 2
+    }
+
+    int * p = new int[n]; // Allocate space for n integers;
+    // Standard C++ does not allow int p[n]; because n is not knowable at compile time. Some compiler allows you to
+    // (and convert the code to a similar one like this at compilation). You should however never do this!
+    for (int i = 0; i < n; ++i){
+        p[i] = 1;
+    }
+    p[0] = 0;
+    p[1] = 0;
+    for (int i = 2; i < n; ++i){
+        if (p[i] == 1){
+            for (int j = 2 * i; j < n; j += i){
+                p[j] = 0;
+            }
+        }
+    }
+    for (int i = 0; i < n; ++i){
+        if (p[i] == 1){
+            std::cout << i << " ";
+        }
+    }
+    std::cout << std::endl;
+    delete[] p;
+}
+```
+
+C++ give us `std::vector` for this purpose (to allocate and free heap memory more easily).
+
+
+```cpp
+#include <vector>
+#include <iostream>
+int main(){
+    int n;
+    std::cin >> n; // Read the bound giving n
+    if (n < 2){
+        return 0; // there are no primes below 2
+    }
+    std::vector<int> p(n, 1); // n ints, all initialized to 1
+    p[0] = 0;
+    p[1] = 0;
+    for (int i = 2; i < n; ++i){
+        if (p[i] == 1){
+            for (int j = 2 * i; j < n; j += i){
+                p[j] = 0;
+            }
+        }
+    }
+    for (int i = 0; i < n; ++i){
+        if (p[i] == 1){
+            std::cout << i << " ";
+        }
+    }
+    std::cout << std::endl;
+    // p is automatically freed here
+}
+```
+
+We show how vector can be used to solve the earlier problem. We propose 2 solutions.
+
+```cpp
+#include <vector>
+#include <iostream>
+
+auto foo(){
+    std::vector<int> foo_arr(100, 1); // we request to be allocated memory for 100 ints, all initialized to 1
+    foo_arr[0] = 0;
+    foo_arr[1] = 0;
+    for (int i = 2; i < 100; ++i){
+        if (foo_arr[i] == 1){
+            for (int j = 2 * i; j < 100; j += i){
+                foo_arr[j] = 0;
+            }
+        }
+    }
+    return foo_arr;
+}
+
+int main(){
+    auto main_arr = foo(); // auto is deduced to std::vector<int>
+    for (int i = 0; i < 100; ++i){
+        if (main_arr[i] == 1){
+            std::cout << i << " ";
+        }
+    }
+    std::cout << std::endl;
+    return 0;
+}
+```
+
+In this first example, we allocate heap memory through `std::vector`. At the end of the function the buffer owned by `foo_arr` is moved to `main_arr`, and it is only when `main` ends that the memory is freed.
+
+```cpp
+#include <vector>
+#include <iostream>
+#include <span>
+#include <cassert>
+
+void foo(std::span<int> foo_arr){
+    assert(foo_arr.size() == 100);
+    for (int i = 0; i < 100; ++i){
+        foo_arr[i] = 1;
+    }
+    foo_arr[0] = 0;
+    foo_arr[1] = 0;
+    for (int i = 2; i < 100; ++i){
+        if (foo_arr[i] == 1){
+            for (int j = 2 * i; j < 100; j += i){
+                foo_arr[j] = 0;
+            }
+        }
+    }
+}
+
+int main(){
+    std::vector<int> main_arr(100);
+    foo(main_arr); // a vector converts implicitly to a span over its elements
+    for (int i = 0; i < 100; ++i){
+        if (main_arr[i] == 1){
+            std::cout << i << " ";
+        }
+    }
+    std::cout << std::endl;
+    return 0;
+}
+```
+In the second example, heap memory is allocated and owned by `main`. `main` then 'shares' this memory with the `foo` function. A `std::span` is a non-owning view: it holds a pointer and a length, and frees nothing.
+
+We note that a third solution is possible
+```cpp
+#include <iostream>
+#include <span>
+
+void foo(std::span<int> foo_arr){
+    for (int i = 0; i < 100; ++i){
+        foo_arr[i] = 1;
+    }
+    foo_arr[0] = 0;
+    foo_arr[1] = 0;
+    for (int i = 2; i < 100; ++i){
+        if (foo_arr[i] == 1){
+            for (int j = 2 * i; j < 100; j += i){
+                foo_arr[j] = 0;
+            }
+        }
+    }
+}
+
+int main(){
+    int main_arr[100];
+    foo(main_arr); // a C array converts implicitly to a span of size 100
+    for (int i = 0; i < 100; ++i){
+        if (main_arr[i] == 1){
+            std::cout << i << " ";
+        }
+    }
+    std::cout << std::endl;
+    return 0;
+}
+```
+
+Here `main_arr` is memory allocated in the stack as a part of the `main` function. Since `main` outlives `foo`, `main` can share this memory with `foo`. There are some reasons this is undesirable. First, this solution presupposes that we know at compile time that we are only computing the primes below 100. If one day we need the primes below `n` then we cannot put `n` instead of 100, as the note above suggests. Second, in general stack memory is limited compared to the heap (a few megabytes per thread by default). Hence, the heap is generally the preferred storage for arrays.
+
+## The Ranges and Algorithms Libraries
+
+We close with the ranges and algorithms libraries, which recover much of the comfort you are used to from Python: `zip`, `enumerate`, `sorted` with a key, and `sum` all have counterparts here. Our example is the knapsack problem. We are given items, each with a weight and a value, and a knapsack of capacity 25, and we want to pack as much value as possible into it. We generate 10 random items and try the classic greedy heuristic: pack the items with the best value per weight first. Create `knapsack/knapsack.cpp`.
+
+```cpp
+#include <algorithm>
+#include <iostream>
+#include <random>
+#include <ranges>
+#include <vector>
+
+int main(){
+    std::mt19937 gen(std::random_device{}());
+    std::uniform_int_distribution<int> weight_dist(1, 10);
+    std::uniform_int_distribution<int> value_dist(1, 100);
+
+    // 10 random items, item i has weight weight[i] and value value[i]
+    std::vector<int> weight, value;
+    for (int i = 0; i < 10; ++i){
+        weight.push_back(weight_dist(gen));
+        value.push_back(value_dist(gen));
+    }
+
+    // zip glues the two vectors into one range of (value, weight) pairs
+    auto items = std::views::zip(value, weight);
+
+    // sort the items by value per weight, best first; both vectors are reordered in lockstep
+    std::ranges::sort(items, [](auto a, auto b){
+        auto [value_a, weight_a] = a;
+        auto [value_b, weight_b] = b;
+        // convert to double so that the division does not truncate (recall the section Types)
+        return static_cast<double>(value_a) / weight_a > static_cast<double>(value_b) / weight_b;
+    });
+
+    for (auto [i, item] : std::views::enumerate(items)){
+        auto [v, w] = item;
+        std::cout << "item " << i << ": value " << v << " weight " << w << "\n";
+    }
+
+    // greedily pack a knapsack of capacity 25, taking every item that still fits
+    int capacity = 25;
+    int packed_value = 0;
+    for (auto [v, w] : items){
+        if (w <= capacity){
+            capacity -= w;
+            packed_value += v;
+        }
+    }
+    std::cout << "packed value " << packed_value << "\n";
+
+    // fold_left is Python's sum
+    std::cout << "value of all items " << std::ranges::fold_left(value, 0, std::plus{}) << "\n";
+    return 0;
+}
+```
+
+We go through this example step by step. The items are stored as two parallel vectors, `weight[i]` and `value[i]` together describe item `i`. `std::views::zip(value, weight)` glues the two vectors into a single range of pairs, the analogue of Python's `zip`. A view is lazy and owns nothing: no pair is built until we iterate, and the view merely borrows the two vectors, in the same non-owning way a `std::span` borrows an array. In particular a view must not outlive the vectors underneath it.
+
+The line `auto [v, w] : items` is called a structured binding and unpacks a pair into two named variables, exactly like tuple unpacking in a Python `for` loop. `std::views::enumerate` is Python's `enumerate`, it pairs every element with its index.
+
+The sort is where the pieces come together. `std::ranges::sort(items, ...)` takes a comparator, a callable that says whether its first argument must come before its second, and we hand it a lambda, this is Python's `sorted(key=...)` in C++ clothing. Since `items` is a zip view over the two vectors, sorting it reorders `value` and `weight` in lockstep, and anyone who has maintained two parallel arrays by hand knows how much bookkeeping that one line replaces. The algorithms library holds many more such functions, `std::ranges::max_element`, `std::ranges::count_if`, `std::ranges::find`, and reaching for them before writing a loop by hand is considered good style.
+
+Note that the greedy packing is a heuristic. It is not, in general, the optimal solution of the knapsack problem — finding that is much harder, and this course is about exactly such problems.
