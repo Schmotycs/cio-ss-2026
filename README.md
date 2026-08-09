@@ -16,6 +16,10 @@ If you prefer working in a locally installed editor over the browser, you can co
 
 The container is based on Ubuntu and ships the LLVM 22 toolchain, so `clang`, `clang++`, `clangd`, `clang-format` and the `lldb` debugger are all available under their usual names, together with CMake. The SQLite library and its command line tool `sqlite3` are also installed; the introduction uses them as an example of a C library. We will compile everything with `-std=c++23`.
 
+## Checking Your Setup
+
+To confirm that your environment is set up correctly, open a terminal inside VS Code (menu Terminal, then New Terminal) and run the command `getpasscode`. It prints a passcode; submit it as described in the course material. If the terminal reports that the command is not found, you are not inside the course container — make sure you opened the repository in a codespace as described above.
+
 ## Where to Start
 
 Once VS Code is open, in the browser or locally, start by working through `introduction-to-programming-in-cpp.md`. It assumes you have programmed in Python before and introduces the parts of C++ we use in this course.
