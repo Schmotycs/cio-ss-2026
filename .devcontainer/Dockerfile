@@ -11,8 +11,10 @@ FROM ubuntu:26.04 AS builder
 
 ARG CLANG_VERSION=22
 ARG CMAKE_VERSION=4.4.2
-
-# SCIP Optimization Suite 10.0.3 set -- all published within
+# These three are the SCIP Optimization Suite 10.0.3 set -- all published within
+# minutes of each other on 2026-07-06. SCIP's find_package(PAPILO/SOPLEX) carries no
+# version constraint, so nothing checks the pairing at configure time; bump them
+# together or not at all.
 ARG SOPLEX_TAG=v8.0.3
 ARG PAPILO_TAG=v3.0.1
 ARG SCIP_TAG=v10.0.3
@@ -268,6 +270,13 @@ RUN test -d /src/scip/src/scip \
     && ln -s /src/scip /opt/scip/source \
     && echo "SCIP source for reference: /opt/scip/source (-> /src/scip)"
 
+# `getpasscode` prints the course passcode students submit to confirm they set up
+# the devcontainer. chmod rather than trusting the checkout: git on Windows hosts
+# routinely drops the execute bit.
+COPY getpasscode /usr/local/bin/getpasscode
+RUN chmod 0755 /usr/local/bin/getpasscode \
+    && test -n "$(getpasscode)"
+
 RUN if ! id -u "${USERNAME}" >/dev/null 2>&1; then \
         groupadd --gid 1000 "${USERNAME}" \
         && useradd --uid 1000 --gid 1000 --create-home --shell /bin/bash "${USERNAME}"; \
@@ -303,3 +312,15 @@ RUN set -eux; \
     curl -fsSL https://github.com/openai/codex/releases/latest/download/install.sh \
         | CODEX_NON_INTERACTIVE=true sh -s -- --release "${CODEX_VERSION}"; \
     codex --version
+
+# SQLite, added after the fact. Deliberately its own layer at the tail rather than a
+# line in the main apt-get up top: touching that list invalidates every layer after
+# it (SCIP copies, smoke tests, both agent installs), while a layer here rebuilds
+# alone in seconds. Fold it into the main list on the next full image rebuild.
+# The apt block above runs as root; this one comes after the USER switch, hence the
+# toggle back.
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libsqlite3-dev \
+    && rm -rf /var/lib/apt/lists/*
+USER ${USERNAME}

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Prints the course passcode students submit to confirm they set up the
+# devcontainer. The string is ROT13+base64 rather than plaintext so it can't be
+# read straight out of the repo. Installed to /usr/local/bin by the Dockerfile.
+echo "VGJ6YmVsUGhn" | base64 -d | tr 'A-Za-z' 'N-ZA-Mn-za-m'

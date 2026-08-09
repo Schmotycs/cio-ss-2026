@@ -15,7 +15,9 @@
   //   cmake -S . -B build -DSCIP_DIR=/opt/scip/debug/lib/cmake/scip
   // The imported target carries an absolute libscip.so path, so the chosen build is
   // baked into the executable's RPATH -- no LD_LIBRARY_PATH needed.
-  "containerEnv": {},
+  "containerEnv": {
+    "SCIP_DIR": "/opt/scip/release/lib/cmake/scip"
+  },
   "runArgs": ["--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined"],
   "customizations": {
     "vscode": {
@@ -37,7 +39,15 @@
         // CMAKE_EXPORT_COMPILE_COMMANDS is what feeds clangd: it writes
         // build/compile_commands.json, which is the only place clangd learns the
         // SCIP include paths and the C++ standard from.
-        "cmake.configureSettings": {},
+        "cmake.configureSettings": {
+          "CMAKE_C_COMPILER": "/usr/bin/clang",
+          "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
+          // The targets set INTERPROCEDURAL_OPTIMIZATION ON. clang's LTO emits LLVM
+          // bitcode, which ld.bfd can only read through the LLVMgold plugin; lld
+          // reads it natively. Without this the link fails on "file not recognized".
+          "CMAKE_EXE_LINKER_FLAGS": "-fuse-ld=lld",
+          "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        },
         "cmake.additionalCompilerSearchDirs": ["/usr/bin"],
         // Belt and braces against cpptools: dropping it from "extensions" only
         // stops the container installing it, but Settings Sync will happily push
@@ -56,6 +66,7 @@
         // clangd and clang are the same LLVM major, so --query-driver is only
         // insurance against version skew.
         "clangd.arguments": [
+          "--query-driver=/usr/bin/clang*",
           "--background-index",
           "--header-insertion=never"
         ]
