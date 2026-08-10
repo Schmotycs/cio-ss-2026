@@ -820,75 +820,90 @@ int main(){
 
 Here `main_arr` is memory allocated in the stack as a part of the `main` function. Since `main` outlives `foo`, `main` can share this memory with `foo`. There are some reasons this is undesirable. First, this solution presupposes that we know at compile time that we are only computing the primes below 100. If one day we need the primes below `n` then we cannot put `n` instead of 100, as the note above suggests. Second, in general stack memory is limited compared to the heap (a few megabytes per thread by default). Hence, the heap is generally the preferred storage for arrays.
 
-## The Ranges and Algorithms Libraries
+## The Ranges and Algorithms Library
 
-We close with the ranges and algorithms libraries, which recover much of the comfort you are used to from Python: `zip`, `enumerate`, `sorted` with a key, and `sum` all have counterparts here. Our example is the knapsack problem. We are given items, each with a weight and a value, and a knapsack of capacity 25, and we want to pack as much value as possible into it. We generate 10 random items and try the classic greedy heuristic: pack the items with the best value per weight first. Create `introduction/knapsack/knapsack.cpp`.
+We close with the algorithms library, which recovers much of the comfort you are used to from Python: `sorted` with a key and `functools.reduce` both have counterparts here. Our example is the knapsack problem. We are given items, each with a weight and a value, and a knapsack of capacity 25, and we want to pack as much value as possible into it. We generate 10 random items and try the classic greedy heuristic: pack the items with the best value per weight first. Create `knapsack/knapsack.cpp`.
 
 ```cpp
 #include <algorithm>
+#include <format>
 #include <iostream>
 #include <random>
-#include <ranges>
 #include <vector>
 
+struct KnapsackItem {
+    int id;
+    int weight;
+    int value;
+};
+
+// A generator: a function object whose every call produces the next random item
+class KnapsackItemGenerator {
+public:
+    KnapsackItem operator()(){
+        return KnapsackItem{next_id_++, weight_dist_(gen_), value_dist_(gen_)};
+    }
+private:
+    std::mt19937 gen_{std::random_device{}()};
+    std::uniform_int_distribution<int> weight_dist_{1, 10};
+    std::uniform_int_distribution<int> value_dist_{1, 100};
+    int next_id_ = 0;
+};
+
+double get_value_to_weight_ratio(const KnapsackItem & item){
+    return static_cast<double>(item.value) / item.weight;
+}
+
+void print_knapsack_item(const KnapsackItem & item){
+    std::cout << std::format("item {:2}: value {:3} weight {:2}\n", item.id, item.value, item.weight);
+}
+
+// The state of the packing: what has been packed so far and the capacity that is left
+struct PackingState {
+    std::vector<KnapsackItem> packed;
+    int remaining_capacity;
+};
+
 int main(){
-    std::mt19937 gen(std::random_device{}());
-    std::uniform_int_distribution<int> weight_dist(1, 10);
-    std::uniform_int_distribution<int> value_dist(1, 100);
-
-    // 10 random items, item i has weight weight[i] and value value[i]
-    std::vector<int> weight, value;
-    for (int i = 0; i < 10; ++i){
-        weight.push_back(weight_dist(gen));
-        value.push_back(value_dist(gen));
-    }
-
-    // zip glues the two vectors into one range of (value, weight) pairs
-    auto items = std::views::zip(value, weight);
-
-    // sort the items by value per weight, best first; both vectors are reordered in lockstep
-    std::ranges::sort(items, [](auto a, auto b){
-        auto [value_a, weight_a] = a;
-        auto [value_b, weight_b] = b;
-        // convert to double so that the division does not truncate (recall the section Types)
-        return static_cast<double>(value_a) / weight_a > static_cast<double>(value_b) / weight_b;
-    });
-
-    for (auto [i, item] : std::views::enumerate(items)){
-        auto [v, w] = item;
-        std::cout << "item " << i << ": value " << v << " weight " << w << "\n";
-    }
-
-    // greedily pack a knapsack of capacity 25, taking every item that still fits
+    // a knapsack of capacity 25 and 10 random items with ids 0,1,2,...
     int capacity = 25;
-    int packed_value = 0;
-    for (auto [v, w] : items){
-        if (w <= capacity){
-            capacity -= w;
-            packed_value += v;
-        }
-    }
-    std::cout << "packed value " << packed_value << "\n";
+    std::vector<KnapsackItem> items(10);
+    std::ranges::generate_n(items.begin(), 10, KnapsackItemGenerator{});
 
-    // fold_left is Python's sum
-    std::cout << "value of all items " << std::ranges::fold_left(value, 0, std::plus{}) << "\n";
+    // Print the items
+    std::cout << "Knapsack capacity: " << capacity << '\n';
+    std::cout << "generated items: \n";
+    std::ranges::for_each(items, print_knapsack_item);
+
+    // sort the items by value per weight, best first
+    std::ranges::sort(items, std::ranges::greater{}, get_value_to_weight_ratio);
+
+    // Consider the current packing state and the next item: if the item fits, pack it, otherwise do not
+    auto pack_if_fit = [](PackingState state, const KnapsackItem & item){
+        if (item.weight <= state.remaining_capacity){
+            state.packed.push_back(item);
+            state.remaining_capacity -= item.weight;
+        }
+        return state;
+    };
+    // greedily pack the knapsack by folding over the items, best first
+    PackingState final_state = std::ranges::fold_left(items, PackingState{{}, capacity}, pack_if_fit);
+
+    std::cout << "packed items:\n";
+    std::ranges::for_each(final_state.packed, print_knapsack_item);
+    std::cout << std::format("packed weight {}\n", capacity - final_state.remaining_capacity);
+
     return 0;
 }
 ```
 
-Compile and run it with
+A `struct` is a class whose members are public by default, and `KnapsackItem{next_id_++, weight_dist_(gen_), value_dist_(gen_)}` fills the members in declaration order. `KnapsackItemGenerator` is a function object with state — the random number generator, the distributions, and a counter — so every call produces the next item; since the members are initialized at their declaration, no constructor is needed.
 
-```bash
-clang++ -std=c++23 knapsack.cpp -o knapsack
-./knapsack
-```
+`std::ranges::sort` takes a comparator and a projection: the projection computes a key for every element, the comparator orders the keys. With `get_value_to_weight_ratio` as the projection and `std::ranges::greater{}` as the comparator this is `sorted(items, key=get_value_to_weight_ratio, reverse=True)`. The id records where each item started, since the sort shuffles them. The algorithms library holds many more, `std::ranges::max_element`, `std::ranges::count_if`, `std::ranges::find`, and reaching for them before writing a loop by hand is considered good style.
 
-Run it a few times: the items are random, so every run packs a different knapsack.
+The packing is `functools.reduce`: `fold_left` threads a `PackingState` — the packed items and the remaining capacity — through `pack`, one call per item. An item that does not fit is skipped rather than final, a later, lighter one may still be packed. The packed weight falls out of the final state as `capacity - final_state.remaining_capacity`.
 
-We go through this example step by step. The items are stored as two parallel vectors, `weight[i]` and `value[i]` together describe item `i`. `std::views::zip(value, weight)` glues the two vectors into a single range of pairs, the analogue of Python's `zip`. A view is lazy and owns nothing: no pair is built until we iterate, and the view merely borrows the two vectors, in the same non-owning way a `std::span` borrows an array. In particular a view must not outlive the vectors underneath it.
-
-The line `auto [v, w] : items` is called a structured binding and unpacks a pair into two named variables, exactly like tuple unpacking in a Python `for` loop. `std::views::enumerate` is Python's `enumerate`, it pairs every element with its index.
-
-The sort is where the pieces come together. `std::ranges::sort(items, ...)` takes a comparator, a callable that says whether its first argument must come before its second, and we hand it a lambda, this is Python's `sorted(key=...)` in C++ clothing. Since `items` is a zip view over the two vectors, sorting it reorders `value` and `weight` in lockstep, and anyone who has maintained two parallel arrays by hand knows how much bookkeeping that one line replaces. The algorithms library holds many more such functions, `std::ranges::max_element`, `std::ranges::count_if`, `std::ranges::find`, and reaching for them before writing a loop by hand is considered good style.
+All three kinds of callables from the section *Functions, Lambdas and Function Objects* have appeared: ordinary functions in `for_each` and as the sort's projection, a function object in `generate_n`, a lambda in `fold_left`.
 
 Note that the greedy packing is a heuristic. It is not, in general, the optimal solution of the knapsack problem — finding that is much harder, and this course is about exactly such problems.
+
