@@ -18,7 +18,7 @@ The container is based on Ubuntu and ships the LLVM 22 toolchain, so `clang`, `c
 
 ## Checking Your Setup
 
-To confirm that your environment is set up correctly, open a terminal inside VS Code (menu Terminal, then New Terminal) and run the command `getpasscode`. It prints a passcode; submit it as described in the course material. If the terminal reports that the command is not found, you are not inside the course container — make sure you opened the repository in a codespace as described above.
+To confirm that your environment is set up correctly, open a terminal inside VS Code (menu Terminal, then New Terminal) and run the command `getpasscode`. It prints a passcode, you setup everything perfectly. If the terminal reports that the command is not found, you are not inside the course container — make sure you opened the repository in a codespace as described above.
 
 ## Where to Start
 
