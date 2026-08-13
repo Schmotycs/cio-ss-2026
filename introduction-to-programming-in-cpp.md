@@ -64,6 +64,10 @@ int main(){
 
     double arr[] = {1.0, 2.0, 3.0};
 
+    // We can also alias types
+    typedef double Real; // alternatively using Real = double;
+    Real p = 5.0;
+
     // For a variety of reasons, C++ programmers use auto instead of declaring the variable type manually. When auto is used the type of the variable is determined by the right hand side
     auto a = 5; // a is an int var
     auto b = 2.5; // b is a double var
