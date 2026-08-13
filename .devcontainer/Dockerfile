@@ -169,12 +169,14 @@ FROM ubuntu:26.04
 
 ARG USERNAME=ubuntu
 ARG CLANG_VERSION=22
-# Both agents install as single native binaries -- no Node in this image. Versions
-# float by default: these CLIs talk to a moving server API and a stale pin stops
-# working outright. For a reproducible image set them to exact versions instead
+# Claude Code and Codex install as single native binaries. Their versions float by
+# default: these CLIs talk to a moving server API and a stale pin stops working
+# outright. For a reproducible image set them to exact versions instead
 # (CLAUDE_CODE_VERSION=2.1.4, CODEX_VERSION=0.146.0); both installers accept one.
 ARG CLAUDE_CODE_VERSION=stable
 ARG CODEX_VERSION=latest
+# Pi runs on Node.js and is pinned so rebuilding the course image is reproducible.
+ARG PI_VERSION=0.84.1
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -200,6 +202,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libtbb-dev \
         ca-certificates \
         git \
+        nodejs \
+        npm \
         sudo \
         vim \
         less \
@@ -276,6 +280,14 @@ RUN test -d /src/scip/src/scip \
 COPY getpasscode /usr/local/bin/getpasscode
 RUN chmod 0755 /usr/local/bin/getpasscode \
     && test -n "$(getpasscode)"
+
+# Pi's published shrinkwrap locks its transitive dependencies. Lifecycle scripts are
+# unnecessary and disabled to reduce the install-time supply-chain surface.
+RUN node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 22 || (major === 22 && minor >= 19) ? 0 : 1)' \
+    && npm install -g --ignore-scripts --no-fund --no-audit \
+        "@earendil-works/pi-coding-agent@${PI_VERSION}" \
+    && test "$(pi --version)" = "${PI_VERSION}" \
+    && npm cache clean --force
 
 RUN if ! id -u "${USERNAME}" >/dev/null 2>&1; then \
         groupadd --gid 1000 "${USERNAME}" \
