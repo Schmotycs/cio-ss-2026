@@ -37,5 +37,6 @@ Bonus: There are 92 possible placement can you print all of them? Hit you need t
 
 ## Mentioned today
 
-C++ Algorithms: https://github.com/HappyCerberus/book-cpp-algorithms
-SCIP Documentation: https://www.scipopt.org/doc/html/
+- C++ Algorithms: https://github.com/HappyCerberus/book-cpp-algorithms
+- SCIP Documentation: https://www.scipopt.org/doc/html/
+
