@@ -34,3 +34,8 @@ End
 Use SCIP to model the following problem: how can you place 8 queens in a chess board such that no two queens attack each other?
 
 Bonus: There are 92 possible placement can you print all of them? Hit you need to use `SCIPfreeTransform`.
+
+## Mentioned today
+
+C++ Algorithms: https://github.com/HappyCerberus/book-cpp-algorithms
+SCIP Documentation: https://www.scipopt.org/doc/html/
