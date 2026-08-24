@@ -1013,31 +1013,6 @@ int main(){
     return 0;
 }
 ```
-
-```cpp
-#include <vector>
-#include <span>
-using namespace std;
-
-void swap(int& a, int&b ){
-    int temp = a;
-    a = b;
-    b = temp;
-}
-void sort(span<int> v){
-for (size_t i = 0; i < V.size(); ++i) {
-    for (size_t j = 0; j < V.size() - i - 1; ++j) {
-        if (V[j] > V[j + 1]) {
-            // ambiguous? is this your swap function above or std::swap
-            swap(V[j], V[j + 1]);
-        }
-    }
-}
-int main(){
-    vector<int> v = {1, 2,3,4,5};
-    sort(v);
-}
-```
 A `struct` is a class whose members are public by default, and `KnapsackItem{next_id_++, weight_dist_(gen_), value_dist_(gen_)}` fills the members in declaration order. `KnapsackItemGenerator` is a function object with state — the random number generator, the distributions, and a counter — so every call produces the next item; since the members are initialized at their declaration, no constructor is needed.
 
 `std::ranges::sort` takes a comparator and a projection: the projection computes a key for every element, the comparator orders the keys. With `get_value_to_weight_ratio` as the projection and `std::ranges::greater{}` as the comparator this is `sorted(items, key=get_value_to_weight_ratio, reverse=True)`. The id records where each item started, since the sort shuffles them. The algorithms library holds many more, `std::ranges::max_element`, `std::ranges::count_if`, `std::ranges::find`, and reaching for them before writing a loop by hand is considered good style.
