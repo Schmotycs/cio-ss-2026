@@ -2,7 +2,7 @@
 
 ## std::span
 
-A span is a non-owning view of an array like object
+A span is a non-owning view of an array-like object.
 
 ```cpp
 #include <vector>
@@ -18,8 +18,8 @@ void fill_to_n(std::span<int> in, int n){
 int main(){
     int arr1[] = {1,1,1,1,1,1,1,1,1,1};
     std::vector<int> arr2 = {1,1,1,1,1,1,1,1,1,1};
-    fill_to_n(arr1);
-    fill_to_n(arr2);
+    fill_to_n(arr1, 10);
+    fill_to_n(arr2, 10);
 
     for (int i=0; i< 10; ++i){
         std::cout <<  arr1[i] << " " ;
@@ -47,27 +47,27 @@ struct SCIPDeleter{
 using SCIPPtr = std::unique_ptr<SCIP, SCIPDeleter>;
 
 int main(){
-    SCIPptr scip; 
+    SCIPPtr scip;
     CALL_CHECK(SCIPcreate(std::out_ptr(scip)));
     CALL_CHECK(SCIPincludeDefaultPlugins(scip.get()));
 }
 ```
 
-We look at SCIP documentation.
+We look at the SCIP documentation.
 
 ![SCIPcreate Documentation](./recap-images/SCIPcreate.png)
 
-`SCIP` type is marked with `**` meaning a pointer is expected where in the address pointed to by the pointer 
-the adress of the created `SCIP` object will written.
+The `SCIP` type is marked with `**`, meaning a pointer is expected. The address of the created `SCIP` object will be written to the address pointed to by this pointer.
 
 ![SCIPincludeDefaultPlugins Documentation](./recap-images/SCIPincludeDefaultPlugins.png)
 
 A `SCIP*` is expected. Contrary to the former case, we only need to recall where the `SCIP` object is created,
-so we pass the adress to a `SCIP` object.
+so we pass the address of a `SCIP` object.
 
 
 ## RAII (Resource Acquisition Is Initialization) with state
-We encounter when creating SCIP variables and SCIP constraints.
+
+We encounter this pattern when creating SCIP variables and SCIP constraints.
 
 ```cpp
 #include <memory>
@@ -93,15 +93,15 @@ int main(){
 }
 ```
 
-Contrary to the previous example the 'deleter' this time requires the SCIP object.
+Contrary to the previous example, the deleter this time requires the SCIP object.
 
 From the SCIP documentation:
 
 ![SCIPreleaseVar Documentation](./recap-images/SCIPreleaseVar.png)
 
-## std::unique_ptr should be 'moved' into a vector
+## std::unique_ptr should be moved into a vector
 
-We see this variable when we generate multiple variable
+We see this pattern when we generate multiple variables:
 
 ```cpp
 std::vector<VarPtr> vars;
@@ -112,14 +112,13 @@ for (int i =0; i< 4; ++i){
 }
 ```
 
-This is because there can exist at most a copy of a unique_ptr at once. If we don't move it then,
-there is temporarily atleast 2 copy (1 in the vector and another the temporary variable inside the loop).
+This is because a `unique_ptr` cannot be copied. If we don't move it, `push_back` attempts to copy the temporary variable into the vector.
 
 ## Use auto when SCIP returns part of its memory
 
-Sometimes SCIP returns part of its memory this is marked (among other ways) by SCIP returning a pointer
-to a function call (marked by `*`). 
-We encounter this today during `SCIPgetBestSol`.
+Sometimes SCIP returns part of its memory. This is marked, among other ways, by SCIP returning a pointer
+from a function call (marked by `*`).
+We encountered this today with `SCIPgetBestSol`.
 
 ```cpp
 if (SCIPgetStatus(scip.get()) == SCIP_STATUS_OPTIMAL) {
@@ -127,11 +126,11 @@ if (SCIPgetStatus(scip.get()) == SCIP_STATUS_OPTIMAL) {
 }
 ```
 
-In this case, we take the type of sol as auto. From the SCIP Documentation we can see that the return type here is a `SCIP_SOL *`.
+In this case, we use `auto` as the type of `sol`. From the SCIP documentation, we can see that the return type here is `SCIP_SOL*`.
 
 ![SCIPgetBestSol Documentation](./recap-images/SCIPgetBestSol.png)
 
-It is also okay to do 
+It is also okay to write:
 
 ```cpp
 SCIP_SOL * sol = SCIPgetBestSol(scip.get()); 
@@ -143,7 +142,7 @@ We then use it without `.get()` e.g.
 SCIPgetSolOrigObj(scip.get(), sol)
 ```
 
-Notice here that sol is of type `SCIP_SOL *` so it already match the type in the documentation.
+Notice here that `sol` is of type `SCIP_SOL*`, so it already matches the type in the documentation.
 
 ![SCIPgetSolOrigObj Documentation](./recap-images/SCIPgetSolOrigObj.png)
 
