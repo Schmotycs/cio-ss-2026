@@ -94,8 +94,7 @@ SCIP_DECL_HEUREXEC(ZIRoundHeur::scip_exec) {
   /* Start editing from here onwards*/
   // Get LP informations, construct spans from SCIPgetLPRows, SCIPgetNLPRows,
   // SCIPgetLPCols, SCIPgetNLPCols
-  std::span<SCIP_COL* const> lp_cols(SCIPgetLPCols(scip), SCIPgetNLPCols(scip));
-  std::span<SCIP_Row* const> lp_rows(SCIPgetLPRows(scip), SCIPgetNLPRows(scip));
+ ...
 
   // Read the incumbent LP solution from SCIP see SCIPcolGetPrimsol
   
