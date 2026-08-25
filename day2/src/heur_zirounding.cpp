@@ -51,7 +51,7 @@ bool is_any_fractional_remaining(SCIP* scip, std::span<SCIP_COL* const> lp_cols,
   // HINT use SCIPvarIsIntegral ad SCIPcolGetVar to check if any incumbent is
   // still fractional, use SCIPisFeasIntegral to check if value is within
   // integer tolerances
-
+...
   return false;
 }
 
@@ -62,6 +62,7 @@ SCIP_Real compute_incumbent_activity(SCIP_Row* row,
   // span using SCIProwGetCols, and SCIProwGetNNonz. Finally use SCIPcolGetLPPos
   // row activity = row constant + sum over nonzero coeff*value. The constant
   // term can be obtianed via SCIProwGetConstant
+    ...
   return activity;
 }
 
