@@ -1,0 +1,6 @@
+limits/time=60
+limits/nodes=1000000
+branching/random/priority=9999
+# Do not change the above 
+
+heuristics/ziround/freq=1
