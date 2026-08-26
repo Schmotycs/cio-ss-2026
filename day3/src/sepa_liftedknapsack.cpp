@@ -146,7 +146,7 @@ SCIP_DECL_SEPAEXECLP(LiftedKnapsackSepa::scip_execlp) {
      * a[0]*x[i_1] + a[1]*x[i_2] + ... + a[k]*x[i_k] <= b
      * where a >= 0, {i_1, ..., i_k} c {1,..., n}
      * to simplify, we can pretend the row is of the form
-     * a[0]*x[1] + ... + a[k]*x[k] <= b
+     * a[0]*x[0] + ... + a[k]*x[k] <= b
      * and only do the mapping back at the end
      * the vector a is already available as row_coefs
      */
@@ -166,44 +166,76 @@ SCIP_DECL_SEPAEXECLP(LiftedKnapsackSepa::scip_execlp) {
     // Start here :)
     // Check that the row is not trivially satisfiable(by setting all xs 0 to 1
     // otherwise continue)
-
-    // ...
+    auto total_weight = 0.0;
+    for (auto coef : row_coeffs) total_weight += coef;
+    if (SCIPisFeasLE(scip, total_weight, rhs)) continue;
 
     // for our purposes now the row is ax_0 + ax_1 + ... + ax_n <= b, where
     // b= rhs and all x_i are binary
 
-    // ...
+    auto accumulated_weight = 0.0;
+    auto accumulated_cost = 0.0;
 
     // We do multiple past for clarity
     // First past get all LP solutions where x_j = 1
-
-    // ...
 
     // For each of the remaining vars
     // We construct a vector of pairs (cost per unit of weight, indices)
     // Hint: std::vector<std::pair<SCIP_Real,int>> list;
     // list.push_back(std::make_pair(quantity, index));
-
-    // ...
+    std::vector<std::pair<SCIP_Real, int>> cost_per_unit_of_weight_indices;
+    for (int i = 0; i < n_k; ++i) {
+      if (SCIPisFeasEQ(scip, incumbent_solution[i], 1)) continue;
+      auto cost = 1 - incumbent_solution[i];
+      auto weight = row_coeffs[i];
+      cost_per_unit_of_weight_indices.push_back(
+          std::make_pair(cost / weight, i));
+    }
 
     // Sort using std::ranges::sort by default ranges is sorted in ascending
     // order it is sorted by first checking the first argument
 
-    // ...
+    std::ranges::sort(cost_per_unit_of_weight_indices);
 
     // start grabbing while accumulated_weight is not greater than b+1
     // Use auto [ratio, index] = vars[i]; to extract data from pair
 
     // ...
+    for (auto [ratio, index] : cost_per_unit_of_weight_indices) {
+      if (SCIPisFeasGT(scip, accumulated_weight, rhs + 1)) break;
+      accumulated_weight += row_coeffs[index];
+      accumulated_cost += 1 - incumbent_solution[index];
+      items_taken.push_back(index);
+    }
 
     // We might overshoot so see if item could have been removed
+    /* less efficient
+    std::vector<int> items_taken_copy;
+    for (int i = std::ssize(items_taken) - 1; i >= 0; --i) {
+      auto index = items_taken[i];
+      if (SCIPisFeasGT(scip, accumulated_weight - row_coeffs[index], rhs + 1)) {
+        accumulated_weight -= row_coeffs[index];
+        accumulated_cost -= 1 - incumbent_solution[index];
+      } else {
+        items_taken_copy.push_back(index);
+      }
+    }
+    items_taken = std::move(items_taken_copy);
+    */
 
-    // ...
+    std::erase_if(items_taken, [&](int i) {
+      if (SCIPisGE(scip, accumulated_weight - row_coeffs[i], rhs + 1)) {
+        accumulated_weight -= row_coeffs[i];
+        accumulated_cost -= 1 - incumbent_solution[i];
+        return true;
+      }
+      return false;
+    });
 
     // No cut can be separated (at least as we heuristically can see it from
     // this constraint)
 
-    // ...
+    if (SCIPisFeasGE(scip, accumulated_cost, 1)) continue;
 
     // End of code you need to fill
 
