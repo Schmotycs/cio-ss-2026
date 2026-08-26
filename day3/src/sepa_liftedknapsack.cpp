@@ -151,10 +151,9 @@ SCIP_DECL_SEPAEXECLP(LiftedKnapsackSepa::scip_execlp) {
      * the vector a is already available as row_coefs
      */
     // Get the vector x
-    std::vector<SCIP_Real> incumbent_solution;
-    incumbent_solution.reserve(n_k);
-    for (auto col : row_cols)
-      incumbent_solution.push_back(SCIPcolGetPrimsol(col));
+    std::vector<SCIP_Real> lp_solution;
+    lp_solution.reserve(n_k);
+    for (auto col : row_cols) lp_solution.push_back(SCIPcolGetPrimsol(col));
     // Get the mapping m -> i_m
     std::vector<int> indices;
     indices.reserve(n_k);
@@ -185,8 +184,8 @@ SCIP_DECL_SEPAEXECLP(LiftedKnapsackSepa::scip_execlp) {
     // list.push_back(std::make_pair(quantity, index));
     std::vector<std::pair<SCIP_Real, int>> cost_per_unit_of_weight_indices;
     for (int i = 0; i < n_k; ++i) {
-      if (SCIPisFeasEQ(scip, incumbent_solution[i], 1)) continue;
-      auto cost = 1 - incumbent_solution[i];
+      if (SCIPisFeasEQ(scip, lp_solution[i], 1)) continue;
+      auto cost = 1 - lp_solution[i];
       auto weight = row_coeffs[i];
       cost_per_unit_of_weight_indices.push_back(
           std::make_pair(cost / weight, i));
@@ -204,7 +203,7 @@ SCIP_DECL_SEPAEXECLP(LiftedKnapsackSepa::scip_execlp) {
     for (auto [ratio, index] : cost_per_unit_of_weight_indices) {
       if (SCIPisFeasGT(scip, accumulated_weight, rhs + 1)) break;
       accumulated_weight += row_coeffs[index];
-      accumulated_cost += 1 - incumbent_solution[index];
+      accumulated_cost += 1 - lp_solution[index];
       items_taken.push_back(index);
     }
 
@@ -226,7 +225,7 @@ SCIP_DECL_SEPAEXECLP(LiftedKnapsackSepa::scip_execlp) {
     std::erase_if(items_taken, [&](int i) {
       if (SCIPisGE(scip, accumulated_weight - row_coeffs[i], rhs + 1)) {
         accumulated_weight -= row_coeffs[i];
-        accumulated_cost -= 1 - incumbent_solution[i];
+        accumulated_cost -= 1 - lp_solution[i];
         return true;
       }
       return false;
