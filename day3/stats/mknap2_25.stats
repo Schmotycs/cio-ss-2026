@@ -1,0 +1,107 @@
+original problem has 60 variables (60 bin, 0 int, 0 cont) and 5 constraints
+SCIP Status        : problem is solved [optimal solution found]
+Total Time         :       0.05
+  solving          :       0.05
+  presolving       :       0.00 (included in solving)
+  reading          :       0.00
+  copying          :       0.00 (0 times copied the problem)
+Original Problem   :
+  Problem name     : mknap_25
+  Variables        : 60 (60 binary, 0 integer, 0 continuous)
+  Implied int vars : 0 (0 binary, 0 integer, 0 continuous)
+  Constraints      : 5 initial, 5 maximal
+  Objective        : maximize, 60 non-zeros (abs.min = 10, abs.max = 892)
+Presolved Problem  :
+  Problem name     : t_mknap_25
+  Variables        : 60 (60 binary, 0 integer, 0 continuous)
+  Implied int vars : 0 (0 binary, 0 integer, 0 continuous)
+  Constraints      : 5 initial, 5 maximal
+  Objective        : minimize, 60 non-zeros (abs.min = 10, abs.max = 892)
+  Nonzeros         : 285 constraint, 0 clique table
+Presolvers         :   ExecTime  SetupTime  Calls  FixedVars   AggrVars   ChgTypes  ChgBounds   AddHoles    DelCons    AddCons   ChgSides   ChgCoefs
+  linear           :       0.00       0.00      0          0          0          0          0          0          0          0          0          0
+  root node        :          -          -      -          7          -          -          7          -          -          -          -          -
+Constraints        :     Number  MaxNumber  #Separate #Propagate    #EnfoLP    #EnfoRelax  #EnfoPS    #Check   #ResProp    Cutoffs    DomReds       Cuts    Applied      Conss   Children
+  integral         :          0          0          0          0        103          0          0          1          0          0          0          0          0          0        202
+  linear           :          5          5          0          0          2          0          0          0          0          0          0          0          0          0          0
+Constraint Timings :  TotalTime  SetupTime   Separate  Propagate     EnfoLP     EnfoPS     EnfoRelax   Check    ResProp    SB-Prop
+  integral         :       0.00       0.00       0.00       0.00       0.00       0.00       0.00       0.00       0.00       0.00
+  linear           :       0.00       0.00       0.00       0.00       0.00       0.00       0.00       0.00       0.00       0.00
+Propagators        : #Propagate   #ResProp    Cutoffs    DomReds
+Propagator Timings :  TotalTime  SetupTime   Presolve  Propagate    ResProp    SB-Prop
+Conflict Analysis  :       Time      Calls    Success    DomReds  Conflicts   Literals    Reconvs ReconvLits   Dualrays   Nonzeros   LP Iters   (pool size: [--,--])
+  propagation      :       0.00          0          0          -          0        0.0          0        0.0          -          -          -
+  infeasible LP    :       0.00          0          0          -          0        0.0          0        0.0          0        0.0          0
+  bound exceed. LP :       0.00          0          0          -          0        0.0          0        0.0          0        0.0          0
+  strong branching :       0.00          0          0          -          0        0.0          0        0.0          -          -          0
+  pseudo solution  :       0.00          1          0          -          0        0.0          0        0.0          -          -          -
+  applied globally :       0.00          -          -          0          0        0.0          -          -          0          -          -
+  applied locally  :          -          -          -          0          0        0.0          -          -          0          -          -
+Gen. Resolution CA :       Time      Calls    Success  Conflicts  LargeCoef  LongConfs    Length
+  propagation      :       0.00          0          0          0          0          0       0.0
+Separators         :   ExecTime  SetupTime      Calls  RootCalls    Cutoffs    DomReds  FoundCuts ViaPoolAdd  DirectAdd    Applied ViaPoolApp  DirectApp      Conss
+  cut pool         :       0.00          -          0          0          -          -          0          0          -          -          -          -          -    (maximal pool size:          0)
+  liftedknapsack   :       0.00       0.00          1          1          0          0          0          0          0          0          0          0          0
+Cutselectors       :   ExecTime  SetupTime      Calls  RootCalls   Selected     Forced   Filtered  RootSelec   RootForc   RootFilt 
+  hybrid           :       0.00       0.00          0          0          0          0          0          0          0          0
+Pricers            :   ExecTime  SetupTime      Calls       Vars
+  problem variables:       0.00          -          0          0
+Branching Rules    :   ExecTime  SetupTime   BranchLP  BranchExt   BranchPS    Cutoffs    DomReds       Cuts      Conss   Children
+  random           :       0.00       0.00        101          0          0          0          0          0          0        202
+Primal Heuristics  :   ExecTime  SetupTime      Calls      Found       Best
+  LP solutions     :       0.00          -          -          2          2
+  relax solutions  :       0.00          -          -          0          0
+  pseudo solutions :       0.00          -          -          0          0
+  strong branching :       0.00          -          -          0          0
+  ziround          :       0.00       0.00          0          0          0
+  other solutions  :          -          -          -          0          -
+LP                 :       Time      Calls Iterations  Iter/call   Iter/sec  Time-0-It Calls-0-It
+  primal LP        :       0.00          0          0       0.00          -       0.00          0
+  dual LP          :       0.03        164        166       1.01    5141.07       0.00          0
+  lex dual LP      :       0.00          0          0       0.00          -
+  barrier LP       :       0.00          0          0       0.00          -       0.00          0
+  resolve instable :       0.00          0          0       0.00          -
+  diving/probing LP:       0.00          0          0       0.00          -
+  strong branching :       0.00          0          0       0.00          -          -          -          0
+    (at root node) :          -          0          0       0.00          -
+  conflict analysis:       0.00          0          0       0.00          -
+B&B Tree           :
+  number of runs   :          1
+  nodes            :        164 (101 internal, 63 leaves)
+  feasible leaves  :          2
+  infeas. leaves   :          0
+  objective leaves :         61
+  nodes (total)    :        164 (101 internal, 63 leaves)
+  nodes left       :          0
+  max depth        :         38
+  max depth (total):         38
+  backtracks       :         19 (11.6%)
+  early backtracks :          0 (0.0%)
+  nodes exc. ref.  :          0 (0.0%)
+  delayed cutoffs  :          0
+  repropagations   :          0 (0 domain reductions, 0 cutoffs)
+  avg switch length:       2.65
+  switching time   :       0.00
+Root Node          :
+  First LP value   : +7.31402173913043e+03
+  First LP Iters   :          1 (1373.63 Iter/sec)
+  First LP Time    :       0.00
+  Final Dual Bound : +7.31402173913043e+03
+  Final Root Iters :          1
+  Root LP Estimate : +7.31209990000000e+03
+Solution           :
+  Solutions found  :          2 (2 improvements)
+  First Solution   : +7.27000000000000e+03   (in run 1, after 14 nodes, 0.01 seconds, depth 5, found by <relaxation>)
+  Gap First Sol.   :       0.51 %
+  Gap Last Sol.    :       0.01 %
+  Primal Bound     : +7.28900000000000e+03   (in run 1, after 163 nodes, 0.05 seconds, depth 38, found by <relaxation>)
+  Dual Bound       : +7.28900000000000e+03
+  Gap              :       0.00 %
+Integrals          :      Total       Avg%
+  primal-dual      :       0.70      14.23
+  primal-ref       :          -          - (not evaluated)
+  dual-ref         :          -          - (not evaluated)
+Solution Status: solved
+Time: 0.048843
+Nodes: 164
+PrimalDualIntegral: 0.6950941451601081
